@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+
+# Retry a command up to 3 times
+function retry() {
+  local n=1
+  local max=3
+  local exitcode=0
+  until [ "$n" -ge 3 ]; do
+    set +o errexit
+    "$@"
+    exitcode=$? && [ $exitcode -eq 0 ] && return
+    set -o errexit
+    ((n++)) && echo "Command failed. Attempt $n/$max:"
+    sleep 0.5
+  done
+  exit $exitcode
+}
+
+function git_check_remote_branch_exists() {
+  git ls-remote --exit-code "${BUILDKITE_REPO}" "${BUILDKITE_BRANCH}" > /dev/null
+}
+
+# Check if the branch buildkite want to clone exists in the remote repo,
+# if not, there is no need to continue
+retry git_check_remote_branch_exists
+

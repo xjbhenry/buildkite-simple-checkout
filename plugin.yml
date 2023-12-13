@@ -1,0 +1,4 @@
+name: RH Buildkite Pre-checkout
+description: Extra check before checking out a repo
+author: https://github.com/xjbhenry
+
