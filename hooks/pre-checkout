@@ -18,7 +18,7 @@ function retry() {
 }
 
 function git_check_remote_branch_exists() {
-  git ls-remote --exit-code "${BUILDKITE_REPO}" "${BUILDKITE_BRANCH}1" > /dev/null
+  git ls-remote --exit-code "${BUILDKITE_REPO}" "${BUILDKITE_BRANCH}" > /dev/null
 }
 
 # Check if the branch buildkite want to clone exists in the remote repo,
