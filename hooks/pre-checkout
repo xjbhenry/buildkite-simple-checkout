@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-
 # Retry a command up to 3 times
 function retry() {
   local n=1
@@ -9,19 +8,38 @@ function retry() {
   until [ "$n" -ge 3 ]; do
     set +o errexit
     "$@"
-    exitcode=$? && [ $exitcode -eq 0 ] && return
+    exitcode=$? && [ $exitcode -eq 0 ] && break
     set -o errexit
-    ((n++)) && echo "Command failed. Attempt $n/$max:"
+    ((n++)) && echo "Command $@ failed. Attempt $n/$max."
     sleep 0.5
   done
-  exit $exitcode
+  return $exitcode
 }
 
 function git_check_remote_branch_exists() {
   git ls-remote --exit-code "${BUILDKITE_REPO}" "${BUILDKITE_BRANCH}" > /dev/null
 }
 
-# Check if the branch buildkite want to clone exists in the remote repo,
-# if not, there is no need to continue
+echo "Setting up git and ssh"
+if ! ssh-keygen -F github.com > /dev/null; then
+  echo "github.com not found in known_hosts"
+  mkdir -p /tmp
+  TMP_FILE="$(mktemp /tmp/github_rsa.pub.XXXXXX)"
+  ssh-keyscan -t rsa github.com > "$TMP_FILE"
+  GH_PUBKEY_FINGERPRINT="$(ssh-keygen -lf "$TMP_FILE" | awk '{ print $2 }')"
+  if [ "$GH_PUBKEY_FINGERPRINT" != "SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s" ]; then
+    echo "FATAL: got wrong public key from keyscan"
+    exit 1
+  fi
+  mkdir -p "$HOME/.ssh" && cat "$TMP_FILE" >> "$HOME/.ssh/known_hosts" && rm "$TMP_FILE"
+  echo "github.com added to known_hosts"
+fi
+
+echo "Checking if remote branch/tag ${BUILDKITE_BRANCH} exists in ${BUILDKITE_REPO}"
 retry git_check_remote_branch_exists
+exitcode=$?
+if [ $exitcode -ne 0 ]; then
+  echo "Unable to find remote branch/tag ${BUILDKITE_BRANCH} in ${BUILDKITE_REPO}"
+fi
+exit $exitcode
 
